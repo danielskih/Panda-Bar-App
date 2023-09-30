@@ -14,18 +14,30 @@ tsvfile = open(filename, 'r', newline='')
 reader = csv.reader(tsvfile, delimiter='\t')
 data = list(reader)
 cart_contents = dict()         # {drink name:{amount:int, price:float}
+colors = ['mustard', 'champagne', 'brown', 'lime', 'white', 'orange', 'blue']
+codes = [
+    [0.9, 0.6, 0.04, .9],  # mustard
+    [1, 0.7, 0.7, 1],  # champagne
+    [0.4, 0.16, 0.16,.9],  # brown
+    [0.20, 0.80, 0.20,1],  # lime
+    [1.00, 1.00, 1.00,1],  # white
+    [1.0, 0.97, 0.0, 1],  # lemon
+    [0.1, 0.1, 1.00,1]   # blue
+]
+codes = [[i*1.3 for i in j] for j in codes]
+color_codes = {key:val for key, val in zip(colors, codes)}
 cart_count = 0
 class MainApp(App):
     def build(self):
         main_layout =  BoxLayout(orientation='vertical',spacing=15)
         child_layout1 = ScrollView()
-        grid_layout = GridLayout(cols=1, spacing=10, size_hint_y=None)
+        grid_layout = GridLayout(cols=1, spacing=4, size_hint_y=None)
         grid_layout.bind(minimum_height=grid_layout.setter('height'))
         data_width = len(data[0])
         for row in data:
             if len(row) >= 2:
-                drink, price0, price1, price2 = row[0], row[1], row[2], row[3]
-                table_row = self.create_row(drink, price0, price1, price2)
+                drink, price0, price1, price2, color = row[0], row[1], row[2], row[3], row[4]
+                table_row = self.create_row(drink, price0, price1, price2, color)
                 grid_layout.add_widget(table_row)
         self.cart_btn = Button(text=f'Cart: {cart_count}', size_hint_y=None, height='10mm', background_color=[0,1.5,1.5,1.6])
         self.cart_btn.bind(on_press=self.cart_btn_press)
@@ -33,7 +45,7 @@ class MainApp(App):
         main_layout.add_widget(self.cart_btn)
         main_layout.add_widget(child_layout1)
         return main_layout
-    def create_row(self, drink, price0, price1, price2):
+    def create_row(self, drink, price0, price1, price2, color):
         class DrinkBtn(Button):
             def __init__(self, name, price, **kwargs):
                 self.name = name
@@ -41,21 +53,21 @@ class MainApp(App):
                 super().__init__(**kwargs)
         row_layout = GridLayout(cols=4, spacing=10, size_hint_y=None, height='9mm')
         # TODO: convert below to loop in range of var data_width
-        drink_price_button = DrinkBtn(text=drink + ' ' + price0 + '€',name=drink, price=float(price0.replace(',','.')))
+        drink_price_button = DrinkBtn(text=drink + ' ' + price0 + '€',name=drink, price=float(price0.replace(',','.')), background_color=color_codes[color])
         drink_price_button.bind(on_press=self.on_press)
         row_layout.add_widget(drink_price_button)
 
-        button_1 = DrinkBtn(text=price1+'€', size_hint_x=None, name=drink+' '+price1+'€', price=float(price1.replace(',','.')))
+        button_1 = DrinkBtn(text=price1+'€', size_hint_x=None, name=drink+' '+price1+'€', price=float(price1.replace(',','.')), background_color=color_codes[color])
         button_1.bind(width=lambda _, value: setattr(button_1, 'width', value))
         button_1.bind(on_press=self.on_press)
         row_layout.add_widget(button_1)
 
-        button_2 = DrinkBtn(text=price2+'€', size_hint_x=None, name=drink+' '+price2+'€', price=float(price2.replace(',','.')))
+        button_2 = DrinkBtn(text=price2+'€', size_hint_x=None, name=drink+' '+price2+'€', price=float(price2.replace(',','.')), background_color=color_codes[color])
         button_2.bind(width=lambda _, value: setattr(button_2, 'width', value))
         button_2.bind(on_press=self.on_press)
         row_layout.add_widget(button_2)
 
-        button_free = DrinkBtn(text='Free', size_hint_x=None, name=drink+' Free', price=0.0)
+        button_free = DrinkBtn(text='Free', size_hint_x=None, name=drink+' Free', price=0.0, background_color=color_codes[color])
         button_free.bind(width=lambda _, value: setattr(button_free, 'width', value))
         button_free.bind(on_press=self.on_press)
         row_layout.add_widget(button_free)

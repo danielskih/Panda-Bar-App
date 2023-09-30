@@ -9,13 +9,13 @@ from kivy.uix.popup import Popup
 
 colors = ['mustard', 'champagne', 'brown', 'lime', 'white', 'lemon', 'blue']
 codes = [
-    [0.92, 0.67, 0.13, 1],  # mustard
-    [0.97, 0.91, 0.81,1],  # champagne
-    [0.65, 0.16, 0.16,1],  # brown
+    [0.9, 0.6, 0.04, .9],  # mustard
+    [1, 0.7, 0.7, 1],  # champagne
+    [0.4, 0.16, 0.16,.9],  # brown
     [0.20, 0.80, 0.20,1],  # lime
     [1.00, 1.00, 1.00,1],  # white
     [1.0, 0.97, 0.0, 1],  # lemon
-    [0.00, 0.00, 1.00,1]   # blue
+    [0.1, 0.1, 1.00,1]   # blue
 ]
 codes = [[i*2 for i in j] for j in codes]
 # codes = [[1,1,1,1], [1,1,1,1], [1,1,1,1], [1,1,1,1], [1,1,1,1], [1,1,1,1], [1,1,1,1]]
