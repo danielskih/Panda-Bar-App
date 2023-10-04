@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "pand-bar",
+  "private_key_id": "61be1c8d59959d3797e9c4c636bc193180507df5",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCcMg7+R+85TbNC\n1/BQ/GSb5uMS0MOia6mdA+oKxxloCwAtBIk5hHeAbBYEgpVOjL8uKcxJwm4TM1rS\nLb9I/cmiSSjhB79rmFQu2XKJXvEhVSBtkTwgn4WIAk2/ncZ3XRAg0jkBnwagNBS4\nq6/ZAAzz/8SpdZC/hZtsxErvy9k/moILbWqxveYedtyWMqRlsBGJZUDoabdm1Fhd\nmgM5ZZOrKs50KVz/eTcfCG2wk9Ynf2AtRxpsYOfEqXw2YCArp97JyZ5CwLLu3h6K\nevSUbyMhJPnV80vzwtYfI9ai2k0SWxyqIjWGA6LL0gaX++0DY5aGQ0mXLC3MfZFI\nLXsaB+Y5AgMBAAECggEACfbzl+tU6q33Urtd/HytmniXYfrpkDIYJwk55Cghic6x\n2y1f58h4qzu6B92g0tsN008dVlNOHHF5SNFcU7bFJ1JNhlWtM5sLO9XphbQF5B9/\nKx5J3LbwmOW0uhXBtJm+Tqm6s0zG6m+IJuPlGw3yxZo6nKkAbAeFC+JV+Yhiurjy\nFvEGKJPb7nlOVOoRJRk0i3sOoyk6isce6YMzPEKPCV2F8WzVCITcuJeO1Hhx7sSU\nze3CYtckHlSjyt8Zem9+eFp+8JtG6x93ZlOSQZqPlwAngt0bJfe2Ha+NjRdTrebx\ndVt5Qeff34HSZlk45YFzbi+QXf7uXcfIDw8Len4t0QKBgQDavrQNXYmLZhsUKZKn\ne7jRq3PX3pQEKujvY5gmP7UyyZ3RZ4Kj/sDic3n4M9LA+TkOQXz6Nd6cOD3iTJHy\n+voiqyP+ACNej41NgytdbsSnDl5G3p9sxE31iw1fD9qnZ+k4ItJJ2AuAFvrr2Z3m\ntAK02Z5GvXBJaOTfLE2H37BjxQKBgQC2zDJZAYs1KolpI08Zrn2byp5v8ahJPuEU\nzwRzQ+ldZUg1gY1IzyFyZlmnQ9r1RGiDHkTuw5xCRiTQAj4VGCCbXw/2pgmsZUro\nEECNtQPeIN/k7Z2XW9s/ZgCX/IEZnsXwRCXRguq9aN+PUFx6me8+Zd0f5nOO3ok2\n7NgkHgN75QKBgBJuUxl1MiuutMVkI1k9UXtJKP+dX3dibjINgDpoz8mxtzx3rkhH\nJNVvyW0iYLWlyirrVa53b4RWMNCqhvmkMANPzD6QoGpNSiinzrWWqbcxvLvX8jLl\n73Oq/btuyIumc74pIPLb40wto4LP2UAhFsFKPM3VFGr7DZ3IS9gQ/vnJAoGAGXRZ\n1ncWkXK468EU9LiNmTIf2erGylxNL36cWgis6GqAIaNGr0rYl3uVJGuYg+rgutFu\nO+lVSw1Fdwm452sSr1APgwMf+bepNKN+ubzpKvdc9h34gekyoKNtlbx9pbmsSobS\n1VfrpDCEYQqJtjDVVdUNc7G9ibmHVfSpLG5ZgdkCgYBYc2/o8Noma4ekvoobNaMQ\nvPKVpRpElkf6x1qr6QnKp4K/z77NrooaKzurX//A1BXXGf58a6wB/d9spvgAq9Np\n59tfZnKihpIT7Oep7BLWB2E1pip9DqcqNTUVOOUgC4odj01zmF4tZtCOGXsyeJv3\ngj9t5TbEXepYHg/jWvoEpQ==\n-----END PRIVATE KEY-----\n",
+  "client_email": "panda-bar-service-203@pand-bar.iam.gserviceaccount.com",
+  "client_id": "106599396792535423885",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/panda-bar-service-203%40pand-bar.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

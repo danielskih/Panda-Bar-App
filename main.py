@@ -5,14 +5,29 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.uix.button import Button
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.popup import Popup
+from kivy.clock import Clock
 import csv
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
  
-# Get data from file
-filename = 'data_new.tsv'
+# # Get data from file
+# filename = 'data_new.tsv'
+# tsvfile = open(filename, 'r', newline='')
+# reader = csv.reader(tsvfile, delimiter='\t')
+# data = list(reader)
 
-tsvfile = open(filename, 'r', newline='')
-reader = csv.reader(tsvfile, delimiter='\t')
-data = list(reader)
+# Get price list from Google Sheet:
+
+# Set up credentials
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+creds = ServiceAccountCredentials.from_json_keyfile_name('pand-bar-61be1c8d5995.json', scope)
+client = gspread.authorize(creds)
+spreadsheet = client.open_by_key('1z-vlC8xdc2H1yxFrwqsZepCV4Y0Ir5pet0G97ltTP3U')
+worksheet = spreadsheet.worksheet('Sheet1')
+# Read the contents of the sheet
+data = worksheet.get_all_values()
+
+# Define global vars
 cart_contents = dict()         # {drink name:{amount:int, price:float}
 colors = ['mustard', 'champagne', 'brown', 'lime', 'white', 'orange', 'blue']
 codes = [
@@ -27,23 +42,34 @@ codes = [
 codes = [[i*1.3 for i in j] for j in codes]
 color_codes = {key:val for key, val in zip(colors, codes)}
 cart_count = 0
+daily_total = {}
+total_daily = 0.0
+last_item = Label(text='', size_hint_x=None)
+last_item.bind(texture_size=last_item.setter('size'))
 class MainApp(App):
     def build(self):
-        main_layout =  BoxLayout(orientation='vertical',spacing=15)
-        child_layout1 = ScrollView()
-        grid_layout = GridLayout(cols=1, spacing=4, size_hint_y=None)
-        grid_layout.bind(minimum_height=grid_layout.setter('height'))
-        data_width = len(data[0])
+        main_layout =  BoxLayout(orientation='vertical', spacing=7)
+        scroll_view = ScrollView()
+        menu = BoxLayout(orientation = 'horizontal', size_hint_y=None, height='16mm', padding=(12,12,12,12), spacing=12)
+        rows_layout = GridLayout(cols=1, spacing=6, size_hint_y=None)
+        rows_layout.bind(minimum_height=rows_layout.setter('height'))
         for row in data:
             if len(row) >= 2:
                 drink, price0, price1, price2, color = row[0], row[1], row[2], row[3], row[4]
                 table_row = self.create_row(drink, price0, price1, price2, color)
-                grid_layout.add_widget(table_row)
-        self.cart_btn = Button(text=f'Cart: {cart_count}', size_hint_y=None, height='10mm', background_color=[0,1.5,1.5,1.6])
+                rows_layout.add_widget(table_row)
+        self.cart_btn = Button(text=f'Cart: {cart_count}', size_hint_y=None, height='12mm', background_color=[0,1.5,1.5,1.6])
+        self.daily_btn = Button(text=f'Log', size_hint=(None,None), height='12mm', width='40mm', background_color=[1,1,1,1])
+        # self.last_item = Label(text=last_item)
+        self.daily_btn.bind(on_press=self.daily_btn_press)
+
         self.cart_btn.bind(on_press=self.cart_btn_press)
-        child_layout1.add_widget(grid_layout)
-        main_layout.add_widget(self.cart_btn)
-        main_layout.add_widget(child_layout1)
+        scroll_view.add_widget(rows_layout)
+        menu.add_widget(last_item)
+        menu.add_widget(self.cart_btn)
+        menu.add_widget(self.daily_btn)
+        main_layout.add_widget(menu)
+        main_layout.add_widget(scroll_view)
         return main_layout
     def create_row(self, drink, price0, price1, price2, color):
         class DrinkBtn(Button):
@@ -71,25 +97,27 @@ class MainApp(App):
         button_free.bind(width=lambda _, value: setattr(button_free, 'width', value))
         button_free.bind(on_press=self.on_press)
         row_layout.add_widget(button_free)
-    
         return row_layout
-        # class PlusMinusBtn(Button):
-            # pass
+
     def on_press(self, instance):
         # Update cart dictionary, create new or update amount and price of existing entry
         global cart_count
+        global last_item
         cart_contents.setdefault(instance.name, {'amount':0, 'price':0})
         cart_contents[instance.name]['amount']+=1
         cart_contents[instance.name]['price']+=instance.price
         cart_count = len(cart_contents)
         self.cart_btn.text = f'Cart: {cart_count}'
-
+        last_item.text = str(instance.name)
+        Clock.schedule_once(self.clear_message_text, 0.4)  # Schedule clear_message_text after N seconds
     def cart_btn_press(self, instance):
         # Creates Cart popup UI:
         total = 0.0
         Cart_ui = BoxLayout(orientation='vertical', spacing=5)
-        Total = Label(text=f'Total {total}€')   # Add total
-        cart_container = BoxLayout(orientation='vertical', padding=[2,0,0,0])
+        scrollView = ScrollView(do_scroll_x=False, do_scroll_y=True)
+        Total = Label(text=f'Total {total}€', size_hint_y=None, height='13mm')   # Add total
+        cart_container = GridLayout(cols=1, spacing=6, size_hint_y=None, padding=[2,0,0,0])
+        cart_container.bind(minimum_height=cart_container.setter('height'))
         class CartRow(BoxLayout):
             def __init__(self, name, amount, price):
                 self.name = Label(text=name, halign='left', valign='middle')
@@ -109,7 +137,7 @@ class MainApp(App):
                 self.add_widget(self.price)
                 self.add_widget(self.minus_btn)
                 self.add_widget(self.plus_btn)
-            # TODO add class method for the + - buttons to change amount and price both in UI ancart_contents dict
+
             def update_cart(self, key, amount, price):
                 if amount == 0:
                     del cart_contents[key]
@@ -145,21 +173,33 @@ class MainApp(App):
                 Total.text = 'Total 0.0€'
         def checkout_action(instance):
             global cart_contents
-            cart_contents = {}
-            self.cart.dismiss()
+            global daily_total
+            global total_daily
+            nonlocal total
+            if cart_contents:
+                for name, j in cart_contents.items():
+                    daily_total[name] = daily_total.setdefault(name, {'amount':0, 'price':0})
+                    daily_total[name]['amount'] += j['amount']
+                    daily_total[name]['price'] += j['price']
+                total_daily+=total
+                cart_contents = {}
             self.cart_btn.text = f'Cart: 0'
+            self.cart.dismiss()
         def close_action(instance):
             self.cart.dismiss()
+            
         if cart_contents:
             for name, val in cart_contents.items():
-                # Format dictioinary item row string
+                # Format dictionary item row string
                 name = name
                 amount = str(val['amount'])
                 price = str(val['price'])+'€'
                 total += val['price']
                 Total.text = f'Total {total}€'
                 cart_container.add_widget(CartRow(name, amount, price))
-            Cart_ui.add_widget(cart_container)
+            scrollView.add_widget(cart_container)
+            Cart_ui.add_widget(scrollView)
+
         Cart_ui.add_widget(Total)
         Checkout = Button(text='Checkout',size_hint_y=None, height='11mm', background_color=[0,1.5,0,1])
         Checkout.bind(on_release=checkout_action)
@@ -172,8 +212,70 @@ class MainApp(App):
         PP_Buttons.add_widget(Close)
         Cart_ui.add_widget(PP_Buttons)
         Cart_ui.add_widget(Checkout)
-        # TODO: make
         self.cart = Popup(title='Cart', content=Cart_ui, size_hint=(0.7, None), height='120mm')
         self.cart.open()
+
+    def daily_btn_press(self, instance):
+        global daily_total
+        global total_daily
+        daily_total_popup = Popup(title='Today\'s total',  content=BoxLayout(orientation='vertical'), size_hint=(0.7, None), height='120mm')
+        close_btn = Button(text="Close", size_hint=(1, None), height= "10mm",background_color=[0,0,2,2])
+        reset_btn = Button(text="Reset", size_hint=(1, None), height= "10mm",background_color=[2,0,0,1.6])
+        # reset
+        PP_Buttons = BoxLayout(orientation='horizontal',spacing=10, size_hint_y=None, height='9mm')
+        PP_Buttons.add_widget(close_btn)
+        PP_Buttons.add_widget(reset_btn)
+        # Add popup balloon with yes/no buttons:
+        # 'yes' calls "reset_daily" function, 'no' closes popup balloon
+        def close_popup(instance):
+            instance.parent.parent.parent.parent.parent.dismiss()
+        close_btn.bind(on_release=close_popup)
+        log_scroll = ScrollView()
+        rows_layout = GridLayout(cols=1, spacing=6, size_hint_y=None)
+        rows_layout.bind(minimum_height=rows_layout.setter('height'))
+        class CartRow(BoxLayout):
+            def __init__(self, name, amount, price):
+                self.name = Label(text=name, halign='left', valign='middle')
+                self.name.bind(size=self.name.setter('text_size')) 
+                self.amount = Label(text=str(amount), size_hint_x=0.1)
+                self.price = Label(text=str(price)+'€', size_hint_x=0.3)
+                super().__init__(orientation='horizontal', spacing=6, size_hint_y=None, height='9mm')
+                self.add_widget(self.name)
+                self.add_widget(self.amount)
+                self.add_widget(self.price)
+        for name, j in daily_total.items():
+            row = CartRow(name, j['amount'], j['price'])
+            rows_layout.add_widget(row)
+        log_scroll.add_widget(rows_layout)
+        daily_total_popup.content.add_widget(log_scroll)
+        daily_total_popup.content.add_widget(Label(text=f'Total: {total_daily}€', size_hint_y=None, height='13mm'))
+        daily_total_popup.content.add_widget(PP_Buttons)
+
+        daily_total_popup.open()
+
+    def reset_daily(self, instance):
+        global daily_total
+        global total_daily
+        daily_total = {}
+        total_daily = 0.0
+        instance.parent.child
+
+
+    # def clear_message_text(self, dt):
+    #     global last_item
+    #     while len(last_item.text)>1:
+    #         last_item.text = last_item.text[1:]
+    #     last_item.text = ''
+
+    def clear_message_text(self, dt):
+        def update_text(*args):
+            if len(last_item.text) > 1:
+                last_item.text = last_item.text[0:-1]
+            else:
+                last_item.text = ''
+                return False  # stop scheduling
+        Clock.schedule_interval(update_text, 0.02)
+
+
 if __name__ == "__main__":
     MainApp().run()
