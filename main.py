@@ -3,16 +3,17 @@ from kivy.uix.label import Label
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.button import Button
+from kivy.properties import StringProperty
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.textinput import TextInput
-
+from kivy.uix.image import Image
 from kivy.uix.popup import Popup
 from kivy.clock import Clock
 import csv
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
  
-# Get data from file
+# Get price list from file
 filename = 'data_new.tsv'
 tsvfile = open(filename, 'r', newline='')
 reader = csv.reader(tsvfile, delimiter='\t')
@@ -44,44 +45,50 @@ codes = [
 codes = [[i*1.3 for i in j] for j in codes]
 color_codes = {key:val for key, val in zip(colors, codes)}
 cart_count = 0
-daily_total = {}
+daily_total = dict()
 total_daily = 0.0
 last_item = Label(text='', size_hint_x=None)
 last_item.bind(texture_size=last_item.setter('size'))
+
 class MainApp(App):
+
+
     def build(self):
         main_layout =  BoxLayout(orientation='vertical', spacing=7)
-        scroll_view = ScrollView()
-        menu = BoxLayout(orientation = 'horizontal', size_hint_y=None, height='16mm', padding=(12,12,12,12), spacing=12)
+        self.scroll_view = ScrollView()
+        menu = BoxLayout(orientation = 'horizontal', size_hint_y=None, height='16mm', spacing=12, padding=(12,12,12,12)) # 
         self.rows_layout = self.build_price_list(data)
-        self.cart_btn = Button(text=f'Cart: {cart_count}', size_hint_y=None, height='12mm', background_color=[0,1.5,1.5,1.6])
-        self.daily_btn = Button(text=f'Log', size_hint=(None,None), height='12mm', width='40mm', background_color=[1,1,1,1])
+ 
+        self.cart_btn = Button(text=f'    : {cart_count}', size_hint_x=None, width='40mm', background_normal='shopping-cart.png') # background_color=[0,1.5,1.5,1.6],
+        self.daily_btn = Button(text=f'Log', size_hint_x=None, width='40mm', background_color=[1,1,1,1])
         self.search = TextInput(multiline=False)
         self.search.bind(text=self.calc)
-
-
         # self.last_item = Label(text=last_item)
         self.daily_btn.bind(on_press=self.daily_btn_press)
         self.cart_btn.bind(on_press=self.cart_btn_press)
-        scroll_view.add_widget(self.rows_layout)
-        menu.add_widget(last_item)
+        self.scroll_view.add_widget(self.rows_layout)
         menu.add_widget(self.cart_btn)
+        menu.add_widget(last_item)
         menu.add_widget(self.search)
         menu.add_widget(self.daily_btn)
         main_layout.add_widget(menu)
-        main_layout.add_widget(scroll_view)
+        main_layout.add_widget(self.scroll_view)
         return main_layout
-    
 
     def calc(self, instance, search_term):
+        # Search related
         if not search_term:
             self.rows_layout = self.build_price_list(data)
+            print(data)
         if search_term:
-            f = filter(lambda x: search_term in x[0], data)
-
-            self.rows_layout = self.build_price_list(f)
-
-    
+            f = filter(lambda x: search_term.lower() in x[0].lower(), data)
+            search_res = [i for i in f]
+            # print(f'Search res \n{search_res}')
+            self.rows_layout = self.build_price_list(search_res)
+        self.scroll_view.clear_widgets()
+        # print("Clearing rows.")
+        self.scroll_view.add_widget(self.rows_layout)
+        # print("Adding new rows.")
 
     def build_price_list(self, data):
         rows_layout = GridLayout(cols=1, spacing=6, size_hint_y=None)
@@ -122,6 +129,7 @@ class MainApp(App):
         return row_layout
 
     def on_press(self, instance):
+        # When drink button is pressed
         # Update cart dictionary, create new or update amount and price of existing entry
         global cart_count
         global last_item
@@ -129,7 +137,7 @@ class MainApp(App):
         cart_contents[instance.name]['amount']+=1
         cart_contents[instance.name]['price']+=instance.price
         cart_count = len(cart_contents)
-        self.cart_btn.text = f'Cart: {cart_count}'
+        self.cart_btn.text = f'    : {cart_count}'
         last_item.text = str(instance.name)
         Clock.schedule_once(self.clear_message_text, 12)  # Schedule clear_message_text after N seconds
     def cart_btn_press(self, instance):
@@ -154,6 +162,7 @@ class MainApp(App):
                 self.minus_btn.bind(on_press=self.substract)
                 self.plus_btn.bind(on_press=self.add)
                 super().__init__(orientation='horizontal', spacing=5, size_hint_y=None, height='9mm')
+                # Add to UI
                 self.add_widget(self.name)
                 self.add_widget(self.amount)
                 self.add_widget(self.price)
@@ -184,15 +193,19 @@ class MainApp(App):
                     self.update_cart(self.name.text, new_amount, new_price)
                     total -= self.unit_price
                     Total.text = f'Total {total}€'
-        def Clear_action(instance):
-            global cart_contents
-            if cart_contents and cart_container is not None:
-                cart_contents = {}
-                cart_container.clear_widgets()
-                self.cart_btn.text = f'Cart: 0'
-                nonlocal total
-                total = 0.0
-                Total.text = 'Total 0.0€'
+                if  int(self.amount.text) == 0:
+                    print(instance.parent.children)#.cart_btn.text = '    : 0'
+
+
+        # def Clear_action(instance): # Unused clear cart function
+        #     global cart_contents
+        #     if cart_contents and cart_container is not None:
+        #         cart_contents = {}
+        #         cart_container.clear_widgets()
+        #         self.cart_btn.text = f'    : 0'
+        #         nonlocal total
+        #         total = 0.0
+        #         Total.text = 'Total 0.0€'
         def checkout_action(instance):
             global cart_contents
             global daily_total
@@ -205,7 +218,7 @@ class MainApp(App):
                     daily_total[name]['price'] += j['price']
                 total_daily+=total
                 cart_contents = {}
-            self.cart_btn.text = f'Cart: 0'
+            self.cart_btn.text = '    : 0'
             self.cart.dismiss()
         def close_action(instance):
             self.cart.dismiss()
