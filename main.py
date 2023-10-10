@@ -8,27 +8,25 @@ from kivy.uix.scrollview import ScrollView
 from kivy.uix.textinput import TextInput
 from kivy.uix.popup import Popup
 from kivy.clock import Clock
+from datetime import datetime
 import csv
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+import sys
  
 # Get price list from file
-filename = 'data_new.tsv'
-tsvfile = open(filename, 'r', newline='')
-reader = csv.reader(tsvfile, delimiter='\t')
-data = list(reader)
+# filename = 'data_new.tsv'
+# tsvfile = open(filename, 'r', newline='')
+# reader = csv.reader(tsvfile, delimiter='\t')
+# data = list(reader)
 
-# Get price list from Google Sheet:
-
-# # Set up credentials
-# scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-# creds = ServiceAccountCredentials.from_json_keyfile_name('pand-bar-61be1c8d5995.json', scope)
-# client = gspread.authorize(creds)
-# spreadsheet = client.open_by_key('1z-vlC8xdc2H1yxFrwqsZepCV4Y0Ir5pet0G97ltTP3U')
-# worksheet = spreadsheet.worksheet('Sheet1')
-# # Read the contents of the sheet
-# data = worksheet.get_all_values()
-
+def google_worksheet(key):
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds = ServiceAccountCredentials.from_json_keyfile_name('pand-bar-7eb11cd831ac.json', scope) # Set up credentials
+    client = gspread.authorize(creds)
+    spreadsheet = client.open_by_key(key) # Get price list from Google Sheet:
+    return spreadsheet.worksheet('Sheet1')
+  
 # Define global vars
 cart_contents = dict()         # {drink name:{amount:int, price:float}
 colors = ['mustard', 'champagne', 'brown', 'lime', 'white', 'orange', 'blue']
@@ -44,61 +42,86 @@ codes = [
 codes = [[i*1.3 for i in j] for j in codes]
 color_codes = {key:val for key, val in zip(colors, codes)}
 cart_count = 0
-daily_total = dict()
+daily_log = dict()
 total_daily = 0.0
 last_item = Label(text='', size_hint_x=None)
 last_item.bind(texture_size=last_item.setter('size'))
 
 class MainApp(App):
-    
+
     def build(self):
         main_layout =  BoxLayout(orientation='vertical', spacing=7)
         self.scroll_view = ScrollView()
-        menu = BoxLayout(orientation = 'horizontal', size_hint_y=None, height='16mm', spacing=12, padding=(12,12,12,12)) # 
-        self.rows_layout = self.build_price_list(data)
-        self.cart_btn = Button(text=f'    : 0', size_hint_x=None, width='40mm', background_normal='shopping-cart.png') # background_color=[0,1.5,1.5,1.6],
-        self.daily_btn = Button(size_hint_x=None, width='40mm', background_normal='log.png')
-        self.checkout_btn = Button(text='Checkout', size_hint_x=None, width='40mm', background_normal='log.png')
-        self.checkout_btn.bind(on_release=self.checkout_one)
-        img = Image(source='search.png', size_hint=(None, None), size=(96,96))
-        self.search = TextInput(multiline=False) # Search input
+        menu = BoxLayout(orientation='horizontal', size_hint_y=None, height='16mm', spacing=6, padding=(12,12,12,12)) 
+
+        self.cart_btn = Button(text=f'    : 0', size_hint_x=None, width='40mm', background_normal='shopping-cart.png', font_size='30sp')
+        self.daily_btn = Button(size_hint_x=None, width='198', background_normal='log.png')
+        self.quick_checkout_btn = Button(size_hint_x=None, width='96', background_normal='check.png')
+        self.quick_checkout_btn.bind(on_release=self.checkout_one)
+        search_container = BoxLayout(orientation='horizontal', spacing=0)
+        img = Image(source='search.png', size_hint=(None, None), size=(96,96)) #Search button icon
+        self.search = TextInput(multiline=False, background_color=(.5, 1, 1, 1), padding=[10, 10]) # Search input
+        # Create the clear button
+        clear_button = Button(size_hint_x=None, width='96',background_normal='clear.png')
+        search_container.add_widget(img)
+        search_container.add_widget(self.search)
+        search_container.add_widget(clear_button)
+
+        # Bind the button's on_release event to clear the text input
+        clear_button.bind(on_release=lambda x: setattr(self.search, 'text', ''))
         self.search.bind(text=self.calc)
         self.daily_btn.bind(on_press=self.daily_btn_press)
         self.cart_btn.bind(on_press=self.cart_btn_press)
-        self.scroll_view.add_widget(self.rows_layout)
+
         menu.add_widget(self.cart_btn)
         menu.add_widget(last_item)
-        menu.add_widget(self.checkout_btn)
-        menu.add_widget(img)
-        menu.add_widget(self.search)
+        menu.add_widget(self.quick_checkout_btn)
+        # menu.add_widget(img)
+        menu.add_widget(search_container)
+        # menu.add_widget(clear_button)
         menu.add_widget(self.daily_btn)
         main_layout.add_widget(menu)
         main_layout.add_widget(self.scroll_view)
 
+        key = '1z-vlC8xdc2H1yxFrwqsZepCV4Y0Ir5pet0G97ltTP3U'
+        try:
+
+            worksheet = google_worksheet(key)
+            self.data = worksheet.get_all_values()
+        except:
+            popup = Popup(title='Network Error',
+                        content=Label(text='Unable to connect to the network.\nPlease check your connection.'),
+                        size_hint=(None, None), size=(600, 250))
+            popup.open()
+            return main_layout
+
+        self.rows_layout = self.build_price_list(self.data)
+        self.scroll_view.add_widget(self.rows_layout)
         
-
-
         return main_layout
     
     def checkout_one(self, instance):
             global cart_contents
-            global daily_total
+            global daily_log
             global total_daily
-            if cart_contents:
+            global last_item
+            if len(cart_contents) == 1:
                 for name, j in cart_contents.items():
-                    daily_total[name] = daily_total.setdefault(name, {'amount':0, 'price':0})
-                    daily_total[name]['amount'] += j['amount']
-                    daily_total[name]['price'] += j['price']
+                    daily_log[name] = daily_log.setdefault(name, {'amount':0, 'price':0})
+                    daily_log[name]['amount'] += j['amount']
+                    daily_log[name]['price'] += j['price']
                     total_daily+=j['price']
                 cart_contents = {}
-            self.cart_btn.text = '    : 0'
+                self.cart_btn.text = '    : 0'
+                last_item.text = ''
 
     def calc(self, instance, search_term):
+        
         # filters and rebuilds price list when search term is there
         if not search_term:
-            self.rows_layout = self.build_price_list(data)
+            self.rows_layout = self.build_price_list(self.data)
         if search_term:
-            f = filter(lambda x: search_term.lower() in x[0].lower(), data)
+            f = filter(lambda x: search_term.lower() in x[0].lower(), self.data)
             search_res = [i for i in f]
             self.rows_layout = self.build_price_list(search_res)
         self.scroll_view.clear_widgets()
@@ -126,12 +149,12 @@ class MainApp(App):
         drink_price_button.bind(on_press=self.on_press)
         row_layout.add_widget(drink_price_button)
 
-        button_1 = DrinkBtn(text=price1+'€', size_hint_x=None, name=drink+' '+price1+'€', price=float(price1.replace(',','.')), background_color=color_codes[color])
+        button_1 = DrinkBtn(text=price1+'€', size_hint_x=None, name=drink+' %', price=float(price1.replace(',','.')), background_color=color_codes[color])
         button_1.bind(width=lambda _, value: setattr(button_1, 'width', value))
         button_1.bind(on_press=self.on_press)
         row_layout.add_widget(button_1)
 
-        button_2 = DrinkBtn(text=price2+'€', size_hint_x=None, name=drink+' '+price2+'€', price=float(price2.replace(',','.')), background_color=color_codes[color])
+        button_2 = DrinkBtn(text=price2+'€', size_hint_x=None, name=drink+' %%', price=float(price2.replace(',','.')), background_color=color_codes[color])
         button_2.bind(width=lambda _, value: setattr(button_2, 'width', value))
         button_2.bind(on_press=self.on_press)
         row_layout.add_widget(button_2)
@@ -146,12 +169,12 @@ class MainApp(App):
         # When drink button is pressed
         # Update cart dictionary, create new or update amount and price of existing entry
         global last_item
-        cart_contents.setdefault(instance.name, {'amount':0, 'price':0})
+        cart_contents.setdefault(instance.name, {'amount':0, 'price':0}) 
         cart_contents[instance.name]['amount']+=1
         cart_contents[instance.name]['price']+=instance.price
         cart_count = len(cart_contents)
         self.cart_btn.text = f'    : {cart_count}'
-        last_item.text = str(instance.name)
+        last_item.text = f'{instance.name}  {instance.price}€'
         Clock.schedule_once(self.clear_message_text, 12)  # Schedule clear_message_text after N seconds
     def cart_btn_press(self, instance):
         # Creates Cart popup UI:
@@ -217,8 +240,9 @@ class MainApp(App):
                     if  int(self.amount.text) == 0:
                         n = get_cart_count()
                         set_cart_count(n-1)
-                    
-        # def Clear_action(instance): # Unused clear cart unction
+        def dummy():
+        ## Disabled clear cart button function     
+        # def Clear_action(instance):
         #     global cart_contents
         #     if cart_contents and cart_container is not None:
         #         cart_contents = {}
@@ -227,6 +251,7 @@ class MainApp(App):
         #         nonlocal total
         #         total = 0.0
         #         Total.text = 'Total 0.0€'
+            pass
         def set_cart_count(n):
             self.cart_btn.text = f'    : {n}'
         def get_cart_count():
@@ -235,14 +260,14 @@ class MainApp(App):
 
         def checkout_action(instance):
             global cart_contents
-            global daily_total
+            global daily_log
             global total_daily
             nonlocal total
             if cart_contents:
                 for name, j in cart_contents.items():
-                    daily_total[name] = daily_total.setdefault(name, {'amount':0, 'price':0})
-                    daily_total[name]['amount'] += j['amount']
-                    daily_total[name]['price'] += j['price']
+                    daily_log[name] = daily_log.setdefault(name, {'amount':0, 'price':0})
+                    daily_log[name]['amount'] += j['amount']
+                    daily_log[name]['price'] += j['price']
                 total_daily+=total
                 cart_contents = {}
             self.cart_btn.text = '    : 0'
@@ -274,19 +299,20 @@ class MainApp(App):
         PP_Buttons.add_widget(Checkout)
         PP_Buttons.add_widget(Close)
         Cart_ui.add_widget(PP_Buttons)
-        self.cart = Popup(title='Cart', content=Cart_ui, size_hint=(0.7, None), height='120mm')
+        self.cart = Popup(title='Cart', content=Cart_ui, size_hint=(0.7, None), height='90mm') 
+        
         self.cart.open()
 
     def daily_btn_press(self, instance):
         '''Daily log, contains all sales since last commit to server.'''
-        global daily_total
+        global daily_log
         global total_daily
         text_total = Label(text=f'Today\'s Total: {total_daily}€', size_hint_y=None, height='13mm')
         def close_popup(instance):
             instance.parent.parent.parent.parent.parent.dismiss()
 
         PP_content = BoxLayout(orientation='vertical')
-        daily_total_popup = Popup(title='Today\'s total',  content=PP_content, size_hint=(0.7, None), height='120mm')
+        daily_log_popup = Popup(title='Today\'s total',  content=PP_content, size_hint=(0.7, None), height='120mm')
         log_scroll = ScrollView()
         rows_layout = GridLayout(cols=1, spacing=6, size_hint_y=None) # Holds rows of the daily log.
         rows_layout.bind(minimum_height=rows_layout.setter('height')) # Binds high
@@ -302,25 +328,34 @@ class MainApp(App):
                 self.add_widget(self.amount)
                 self.add_widget(self.price)
 
-        for name, j in daily_total.items():
+        for name, j in daily_log.items():
             # Create rows of daily log 
             row = CartRow(name, j['amount'], j['price'])
             rows_layout.add_widget(row) # add them to the layout
 
         log_scroll.add_widget(rows_layout)
-        daily_total_popup.content.add_widget(log_scroll)
-        daily_total_popup.content.add_widget(text_total)
+        daily_log_popup.content.add_widget(log_scroll)
+        daily_log_popup.content.add_widget(text_total)
         def submit_daily(instance):
             ''' Button to submit daily log to database and reset the daily log.'''
-            global daily_total
+            global daily_log
             global total_daily
             nonlocal rows_layout
             nonlocal text_total
-            if daily_total and rows_layout.children:
-                daily_total = {}
+            #TODO add date and upload data to spreadsheet
+            if daily_log and rows_layout.children:
+                current_date = datetime.now().strftime('%Y-%m-%d')
+                key = '1cfFCJSIsA3iYOozTkZosDgMWg0w8cKqOufOTiUun5jM'
+                worksheet = google_worksheet(key)
+                data = []
+                for key, val in daily_log.items():
+                    data.append([key, val['price'], val['amount'], current_date])
+                worksheet.insert_rows(data, 2)  # Insert at row 2 (shifts existing rows down)
+                daily_log = {}
                 total_daily = 0.0
                 rows_layout.clear_widgets()
                 text_total.text = 'Today\'s total: 0.0'
+            # Close the popup
             instance.parent.parent.parent.parent.dismiss()
         close_btn = Button(text="Close", size_hint=(1, None), height= "10mm",background_color=[0,0,2,2])
         submit_btn = Button(text="Submit", size_hint=(1, None), height= "10mm",background_color=[0,1.5,0,1])
@@ -344,18 +379,13 @@ class MainApp(App):
         PP_Buttons = BoxLayout(orientation='horizontal',spacing=10, size_hint_y=None, height='9mm')
         PP_Buttons.add_widget(close_btn)
         PP_Buttons.add_widget(submit_btn)
-       
         close_btn.bind(on_release=close_popup)
+        daily_log_popup.content.add_widget(PP_Buttons)
 
-        daily_total_popup.content.add_widget(PP_Buttons)
-
-
-        daily_total_popup.open()
+        daily_log_popup.open()
 
     def clear_message_text(self, dt):
         global last_item
-        while len(last_item.text)>1:
-            last_item.text = last_item.text[1:]
         last_item.text = ''
 
     # def clear_message_text(self, dt):
