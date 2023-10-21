@@ -9,10 +9,21 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.popup import Popup
 from kivy.clock import Clock
 from datetime import datetime
-import csv
+# import csv
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
-import sys
+from google.oauth2.service_account import Credentials
+from google.auth.transport.requests import Request
+
+def google_worksheet(key):
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds = Credentials.from_service_account_file('pand-bar-7eb11cd831ac.json', scopes=scope)
+    if not creds.valid:
+        if creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+    client = gspread.authorize(creds)
+    spreadsheet = client.open_by_key(key) 
+    return spreadsheet.worksheet('Sheet1')
+
  
 # Get price list from file
 # filename = 'data_new.tsv'
@@ -20,12 +31,6 @@ import sys
 # reader = csv.reader(tsvfile, delimiter='\t')
 # data = list(reader)
 
-def google_worksheet(key):
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name('pand-bar-7eb11cd831ac.json', scope) # Set up credentials
-    client = gspread.authorize(creds)
-    spreadsheet = client.open_by_key(key) # Get price list from Google Sheet:
-    return spreadsheet.worksheet('Sheet1')
   
 # Define global vars
 cart_contents = dict()         # {drink name:{amount:int, price:float}
@@ -60,7 +65,7 @@ class MainApp(App):
         self.quick_checkout_btn.bind(on_release=self.checkout_one)
         search_container = BoxLayout(orientation='horizontal', spacing=0)
         img = Image(source='search.png', size_hint=(None, None), size=(96,96)) #Search button icon
-        self.search = TextInput(multiline=False, background_color=(.5, 1, 1, 1), padding=[10, 10]) # Search input
+        self.search = TextInput(multiline=False, background_color=(.7, .7, .7, 1), padding=[10, 10]) # Search input
         # Create the clear button
         clear_button = Button(size_hint_x=None, width='96',background_normal='clear.png')
         search_container.add_widget(img)
